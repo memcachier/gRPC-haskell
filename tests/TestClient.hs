@@ -114,7 +114,7 @@ testBiDiStreamingCall client = testCase "Bidi-streaming call" $
      iterations <- randomRIO (50, 500)
 
      res <- simpleServiceBiDiStreamingCall client $
-            ClientBiDiRequest 10 mempty (\_ -> handleRequests iterations)
+            ClientBiDiRequest (Just 10) mempty (\_ -> handleRequests iterations)
      case res of
        ClientErrorResponse err -> assertString ("ClientErrorResponse: " <> show err)
        ClientBiDiResponse _ sts _ ->

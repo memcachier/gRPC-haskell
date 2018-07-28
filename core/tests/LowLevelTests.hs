@@ -517,7 +517,7 @@ testBiDiStreaming =
 
     client c = do
       rm  <- clientRegisterMethodBiDiStreaming c "/bidi"
-      eea <- clientRW c rm 10 clientInitMD $ \getMD recv send writesDone -> do
+      eea <- clientRW c rm (Just 10) clientInitMD $ \getMD recv send writesDone -> do
         either clientFail (checkMD "Server rsp metadata mismatch" serverInitMD) =<< getMD
         send "cw0" `is` Right ()
         recv       `is` Right (Just "sw0")
@@ -553,7 +553,7 @@ testBiDiStreamingUnregistered =
 
     client c = do
       rm  <- clientRegisterMethodBiDiStreaming c "/bidi"
-      eea <- clientRW c rm 10 clientInitMD $ \getMD recv send writesDone -> do
+      eea <- clientRW c rm (Just 10) clientInitMD $ \getMD recv send writesDone -> do
         either clientFail (checkMD "Server rsp metadata mismatch" serverInitMD) =<< getMD
         send "cw0" `is` Right ()
         recv       `is` Right (Just "sw0")

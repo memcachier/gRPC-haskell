@@ -58,7 +58,7 @@ data ClientRequest (streamType :: GRPCMethodType) request response where
   -- invoke its final argument (of type @(StreamRecv response)@)
   -- in order to obtain the streaming response incrementally.
   ClientReaderRequest :: request -> TimeoutSeconds -> MetadataMap -> (MetadataMap -> StreamRecv response -> IO ()) -> ClientRequest 'ServerStreaming request response
-  ClientBiDiRequest :: TimeoutSeconds -> MetadataMap -> (MetadataMap -> StreamRecv response -> StreamSend request -> WritesDone -> IO ()) -> ClientRequest 'BiDiStreaming request response
+  ClientBiDiRequest :: Maybe TimeoutSeconds -> MetadataMap -> (MetadataMap -> StreamRecv response -> StreamSend request -> WritesDone -> IO ()) -> ClientRequest 'BiDiStreaming request response
 
 data ClientResult (streamType :: GRPCMethodType) response where
   ClientNormalResponse :: response -> MetadataMap -> MetadataMap -> StatusCode -> StatusDetails -> ClientResult 'Normal response

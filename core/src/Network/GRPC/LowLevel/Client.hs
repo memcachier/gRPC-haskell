@@ -180,26 +180,26 @@ clientCreateCall :: Client
                  -> RegisteredMethod mt
                  -> TimeoutSeconds
                  -> IO (Either GRPCIOError ClientCall)
-clientCreateCall c rm ts = clientCreateCallParent c rm ts Nothing
+clientCreateCall c rm ts = clientCreateCallParent c rm (Just ts) Nothing
 
 -- | For servers that act as clients to other gRPC servers, this version creates
 -- a client call with an optional parent server call. This allows for cascading
 -- call cancellation from the `ServerCall` to the `ClientCall`.
 clientCreateCallParent :: Client
                            -> RegisteredMethod mt
-                           -> TimeoutSeconds
+                           -> Maybe TimeoutSeconds
                            -> Maybe (ServerCall a)
                            -- ^ Optional parent call for cascading cancellation.
                            -> IO (Either GRPCIOError ClientCall)
 clientCreateCallParent Client{..} rm timeout parent = do
-  C.withDeadlineSeconds timeout $ \deadline -> do
+  maybe C.withInfiniteDeadline C.withDeadlineSeconds timeout $ \deadline -> do
     channelCreateCall clientChannel parent C.propagateDefaults
       clientCQ (methodHandle rm) deadline
 
 -- | Handles safe creation and cleanup of a client call
 withClientCall :: Client
                -> RegisteredMethod mt
-               -> TimeoutSeconds
+               -> Maybe TimeoutSeconds
                -> (ClientCall -> IO (Either GRPCIOError a))
                -> IO (Either GRPCIOError a)
 withClientCall cl rm tm = withClientCallParent cl rm tm Nothing
@@ -210,7 +210,7 @@ withClientCall cl rm tm = withClientCallParent cl rm tm Nothing
 -- the given gRPC client is also a server.
 withClientCallParent :: Client
                      -> RegisteredMethod mt
-                     -> TimeoutSeconds
+                     -> Maybe TimeoutSeconds
                      -> Maybe (ServerCall b)
                         -- ^ Optional parent call for cascading cancellation
                      -> (ClientCall -> IO (Either GRPCIOError a))
@@ -261,7 +261,7 @@ clientReader :: Client
              -> ClientReaderHandler
              -> IO (Either GRPCIOError ClientReaderResult)
 clientReader cl@Client{ clientCQ = cq } rm tm body initMeta f =
-  withClientCall cl rm tm go
+  withClientCall cl rm (Just tm) go
   where
     go (unsafeCC -> c) = runExceptT $ do
       void $ runOps' c cq [ OpSendInitialMetadata initMeta
@@ -286,7 +286,7 @@ clientWriter :: Client
              -> ClientWriterHandler
              -> IO (Either GRPCIOError ClientWriterResult)
 clientWriter cl rm tm initMeta =
-  withClientCall cl rm tm . clientWriterCmn cl initMeta
+  withClientCall cl rm (Just tm) . clientWriterCmn cl initMeta
 
 clientWriterCmn :: Client -- ^ The active client
                 -> MetadataMap -- ^ Initial client metadata
@@ -329,7 +329,7 @@ type ClientRWResult = (MetadataMap, C.StatusCode, StatusDetails)
 
 clientRW :: Client
          -> RegisteredMethod 'BiDiStreaming
-         -> TimeoutSeconds
+         -> Maybe TimeoutSeconds
          -> MetadataMap
          -> ClientRWHandler
          -> IO (Either GRPCIOError ClientRWResult)
@@ -440,7 +440,7 @@ clientRequestParent
   -- ^ Metadata to send with the request
   -> IO (Either GRPCIOError NormalRequestResult)
 clientRequestParent cl@(clientCQ -> cq) p rm tm body initMeta =
-  withClientCallParent cl rm tm p (fmap join . go)
+  withClientCallParent cl rm (Just tm) p (fmap join . go)
   where
     go (unsafeCC -> c) =
       -- NB: the send and receive operations below *must* be in separate

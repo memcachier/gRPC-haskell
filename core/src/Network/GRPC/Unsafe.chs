@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE InterruptibleFFI #-}
 
 module Network.GRPC.Unsafe where
 
@@ -156,9 +157,12 @@ castPeek p = do
 -- | Block until we get the next event with the given 'Tag' off the given
 -- 'CompletionQueue'. NOTE: No more than 'maxCompletionQueuePluckers' can call
 -- this function concurrently!
-{#fun grpc_completion_queue_pluck_ as ^
-  {`CompletionQueue',unTag `Tag', `CTimeSpecPtr',unReserved `Reserved'}
-  -> `Event' castPeek*#}
+grpcCompletionQueuePluck :: CompletionQueue -> Tag -> CTimeSpecPtr -> Reserved -> IO Event
+grpcCompletionQueuePluck a1 a2 a3 a4 =
+  grpcCompletionQueuePluck'_ a1 (unTag a2) a3 (unReserved a4) >>= castPeek
+
+foreign import ccall interruptible "Network/GRPC/Unsafe.chs.h grpc_completion_queue_pluck_"
+  grpcCompletionQueuePluck'_ :: CompletionQueue -> Ptr () -> CTimeSpecPtr -> Ptr () -> IO (Ptr ())
 
 -- | Stops a completion queue. After all events are drained,
 -- 'grpcCompletionQueueNext' will yield 'QueueShutdown' and then it is safe to
